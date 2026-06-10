@@ -8,7 +8,8 @@ import {
   forgotPassword, 
   resetPassword, 
   getProfile, 
-  updateProfile 
+  updateProfile,
+  googleLogin
 } from '../controllers/authController.js';
 import { 
   getExperiences, 
@@ -43,6 +44,7 @@ import {
   toggleUserRole, 
   deleteUser 
 } from '../controllers/adminController.js';
+import { getAIChatResponse } from '../controllers/aiController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -53,6 +55,7 @@ const router = express.Router();
 router.post('/auth/register', register);
 router.post('/auth/verify-email', verifyEmail);
 router.post('/auth/login', login);
+router.post('/auth/google', googleLogin);
 router.post('/auth/refresh', refresh);
 router.post('/auth/logout', logout);
 router.post('/auth/forgot-password', forgotPassword);
@@ -105,5 +108,10 @@ router.get('/companies/:companyName/insights', getCompanyInsights);
 router.get('/admin/users', protect, admin, getUsers);
 router.put('/admin/users/:id/role', protect, admin, toggleUserRole);
 router.delete('/admin/users/:id', protect, admin, deleteUser);
+
+// ==========================================
+// AI EXPERIENCE CHATBOT
+// ==========================================
+router.post('/ai/chat', protect, getAIChatResponse);
 
 export default router;

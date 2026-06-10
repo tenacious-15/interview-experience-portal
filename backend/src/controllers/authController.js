@@ -31,9 +31,6 @@ export const register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
 
     const newUser = await User.create({
       name,
@@ -43,28 +40,14 @@ export const register = async (req, res) => {
       branch,
       graduationYear: parseInt(graduationYear),
       currentCompany: currentCompany || '',
-      isVerified: false,
-      verificationToken
+      isVerified: true, // Auto verified
+      verificationToken: null
     });
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(newUser.email, verificationToken, newUser.name);
-    } catch (mailError) {
-      console.error('Failed to send verification email:', mailError.message);
-    }
-
-    // For ease of testing, return verification token in developer mode
-    const responsePayload = {
-      message: 'Registration successful! Please verify your email.',
+    res.status(201).json({
+      message: 'Registration successful! You can now log in.',
       email: newUser.email
-    };
-
-    if (process.env.NODE_ENV !== 'production') {
-      responsePayload.devVerificationToken = verificationToken;
-    }
-
-    res.status(201).json(responsePayload);
+    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ message: 'Server error during registration.' });
@@ -111,12 +94,10 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
+    // Auto verify legacy unverified accounts upon successful login
     if (!user.isVerified) {
-      return res.status(400).json({ 
-        message: 'Please verify your email first. A verification link was sent to your email.',
-        isNotVerified: true,
-        devVerificationToken: user.verificationToken // expose token in dev for testing
-      });
+      user.isVerified = true;
+      await user.save();
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
@@ -335,3 +316,77 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error updating profile.' });
   }
 };
+
+export const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ message: 'Google credential token is required.' });
+    }
+
+    // Verify Google Token via Google tokeninfo API (native fetch)
+    const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!googleRes.ok) {
+      return res.status(400).json({ message: 'Invalid Google credential.' });
+    }
+
+    const payload = await googleRes.json();
+    const { email, name, picture, email_verified } = payload;
+
+    if (!email_verified) {
+      return res.status(400).json({ message: 'Google email is not verified.' });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      // Create user if not exists
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = await User.create({
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: 'student',
+        college: 'Not Specified',
+        branch: 'Not Specified',
+        graduationYear: new Date().getFullYear(),
+        currentCompany: '',
+        isVerified: true,
+        avatar: picture || ''
+      });
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    // Set Refresh Token in cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(200).json({
+      message: 'Login successful via Google!',
+      accessToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        college: user.college,
+        branch: user.branch,
+        graduationYear: user.graduationYear,
+        currentCompany: user.currentCompany,
+        avatar: user.avatar || ''
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ message: 'Server error during Google login.' });
+  }
+};
+

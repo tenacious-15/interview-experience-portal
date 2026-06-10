@@ -1,11 +1,8 @@
 import 'dotenv/config';
 import nodemailer from 'nodemailer';
 
-const hasSmtpConfig = !!(
-  process.env.SMTP_HOST &&
-  process.env.SMTP_USER &&
-  process.env.SMTP_PASS
-);
+// Force SMTP config to false to run exclusively in Console Fallback mode
+const hasSmtpConfig = false;
 
 let transporter;
 

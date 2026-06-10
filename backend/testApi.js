@@ -50,7 +50,7 @@ async function runTests() {
     failures++;
   }
 
-  // Test 3: Register New User & Auto-Verify
+  // Test 3: Register New User & Direct Login
   try {
     const testEmail = `testuser_${Date.now()}@example.com`;
     const regRes = await request('/api/auth/register', {
@@ -65,17 +65,8 @@ async function runTests() {
       })
     });
     assert.strictEqual(regRes.status, 201);
-    const verifyToken = regRes.data.devVerificationToken;
-    assert.ok(verifyToken);
     
-    // Perform verification
-    const verRes = await request('/api/auth/verify-email', {
-      method: 'POST',
-      body: JSON.stringify({ token: verifyToken })
-    });
-    assert.strictEqual(verRes.status, 200);
-
-    // Login new user
+    // Login new user directly
     const logRes = await request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({
@@ -84,9 +75,9 @@ async function runTests() {
       })
     });
     assert.strictEqual(logRes.status, 200);
-    console.log('✅ Test 3: Registration and Auto-Verification Flow Passed');
+    console.log('✅ Test 3: Direct Registration and Login Flow Passed');
   } catch (err) {
-    console.error('❌ Test 3: Registration and Auto-Verification Flow Failed:', err.message);
+    console.error('❌ Test 3: Direct Registration and Login Flow Failed:', err.message);
     failures++;
   }
 

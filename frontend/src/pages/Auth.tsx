@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader } from '../components/Loader';
-import { ShieldCheck, Mail, Lock, User as UserIcon, GraduationCap, Building2, KeyRound } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, GraduationCap, Building2, KeyRound } from 'lucide-react';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset' | 'verify';
 
 export const Auth: React.FC = () => {
-  const { registerUser, verifyEmailToken, loginUser, forgotUserPassword, resetUserPassword, isAuthenticated } = useAuth();
+  const { registerUser, verifyEmailToken, loginUser, loginWithGoogle, forgotUserPassword, resetUserPassword, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -24,8 +24,7 @@ export const Auth: React.FC = () => {
   const [branch, setBranch] = useState('');
   const [graduationYear, setGraduationYear] = useState('');
   const [currentCompany, setCurrentCompany] = useState('');
-
-
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -46,6 +45,77 @@ export const Auth: React.FC = () => {
     }
   }, [searchParams]);
 
+  // Dynamically load Google Identity Services Script
+  useEffect(() => {
+    const scriptId = 'google-gsi-client';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const initGoogle = () => {
+      const g = (window as any).google;
+      if (g && g.accounts) {
+        g.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1058296316279-h0h85cbrh57qg152k34m829afake.apps.googleusercontent.com',
+          callback: handleGoogleCredentialResponse,
+        });
+        renderGoogleButton();
+      }
+    };
+
+    if (script) {
+      script.addEventListener('load', initGoogle);
+    }
+
+    // Attempt to initialize if script is already loaded
+    if ((window as any).google) {
+      initGoogle();
+    }
+
+    return () => {
+      if (script) {
+        script.removeEventListener('load', initGoogle);
+      }
+    };
+  }, [mode]);
+
+  const renderGoogleButton = () => {
+    const g = (window as any).google;
+    const btnContainer = document.getElementById('googleSignInButton');
+    if (g && g.accounts && btnContainer) {
+      g.accounts.id.renderButton(btnContainer, {
+        theme: 'filled_blue',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: btnContainer.clientWidth || 320,
+      });
+    }
+  };
+
+  const handleGoogleCredentialResponse = async (response: any) => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      await loginWithGoogle(response.credential);
+      navigate('/');
+    } catch (err: any) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || err.message || 'Google Sign-In failed.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyToken = async (token: string) => {
     setLoading(true);
     try {
@@ -62,7 +132,6 @@ export const Auth: React.FC = () => {
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-
     setLoading(true);
 
     try {
@@ -70,7 +139,7 @@ export const Auth: React.FC = () => {
         await loginUser({ email, password });
         navigate('/');
       } else if (mode === 'register') {
-        const res = await registerUser({
+        await registerUser({
           name,
           email,
           password,
@@ -80,16 +149,22 @@ export const Auth: React.FC = () => {
           currentCompany
         });
         
-        setMessage({ 
-          type: 'success', 
-          text: res.message || 'Registration successful! Verification token sent.' 
-        });
-
-        // Clean fields
+        // Auto-login registered user directly since registration is auto-verified!
+        try {
+          await loginUser({ email, password });
+          navigate('/');
+        } catch (loginErr) {
+          // If auto-login fails, prompt them to sign in
+          setMessage({ 
+            type: 'success', 
+            text: 'Registration successful! Please sign in using your credentials.' 
+          });
+          setMode('login');
+        }
         setPassword('');
       } else if (mode === 'forgot') {
         const res = await forgotUserPassword(email);
-        setMessage({ type: 'success', text: res.message || 'Reset link dispatched.' });
+        setMessage({ type: 'success', text: res.message || 'Password reset link printed to server console.' });
       } else if (mode === 'reset') {
         const token = searchParams.get('token');
         if (!token) throw new Error('Reset token is missing from URL.');
@@ -117,26 +192,57 @@ export const Auth: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden py-12">
-      {/* Decorative Blur Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden py-12 bg-slate-950 text-slate-100 font-sans">
+      {/* Soft background glow circles */}
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="w-full max-w-xl glass-card rounded-2xl p-8 relative z-10 border border-white/10 shadow-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4">
-            <ShieldCheck className="w-8 h-8" />
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 relative z-10 shadow-2xl">
+        {/* Toggle sliding container (only for login & register modes) */}
+        {(mode === 'login' || mode === 'register') && (
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/80 mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setMessage(null);
+              }}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                mode === 'login'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setMessage(null);
+              }}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                mode === 'register'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Register
+            </button>
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-            {mode === 'login' && 'Welcome to InterviewHub'}
-            {mode === 'register' && 'Create Your Student Account'}
-            {mode === 'forgot' && 'Trouble Logging In?'}
-            {mode === 'reset' && 'Reset Password'}
+        )}
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-extrabold tracking-tight text-white">
+            {mode === 'login' && 'Welcome back'}
+            {mode === 'register' && 'Create your account'}
+            {mode === 'forgot' && 'Trouble logging in?'}
+            {mode === 'reset' && 'Reset password'}
             {mode === 'verify' && 'Verifying Email'}
           </h2>
           <p className="text-sm text-slate-400 mt-2">
-            {mode === 'login' && 'Access company interview experiences, tips, and asked questions.'}
+            {mode === 'login' && 'Sign in to continue to your workspace'}
             {mode === 'register' && 'Join the community and start preparing with college seniors.'}
             {mode === 'forgot' && 'Enter your email to receive a secure password recovery link.'}
             {mode === 'reset' && 'Set a strong, new password for your portal account.'}
@@ -144,114 +250,119 @@ export const Auth: React.FC = () => {
           </p>
         </div>
 
-        {/* Info/Error Message Display */}
+        {/* Message Alert Panel */}
         {message && (
-          <div className={`p-4 rounded-xl border mb-6 text-sm flex flex-col gap-1 ${
+          <div className={`p-4 rounded-xl border mb-5 text-sm flex flex-col gap-1 ${
             message.type === 'success' 
-              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-              : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+              ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-400' 
+              : 'bg-rose-950/40 border-rose-800/80 text-rose-400'
           }`}>
-            <span className="font-semibold">{message.type === 'success' ? 'Success' : 'Error'}</span>
+            <span className="font-bold">{message.type === 'success' ? 'Success' : 'Error'}</span>
             <span>{message.text}</span>
           </div>
         )}
 
-
-
-        {/* Form Container */}
+        {/* Form Body */}
         {mode !== 'verify' && (
-          <form onSubmit={handleAuthSubmit} className="space-y-5">
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            
             {/* REGISTER: Name */}
             {mode === 'register' && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Full Name</label>
                 <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <UserIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Rahul Sharma"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium"
+                    placeholder="Rahul Sharma"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
                 </div>
               </div>
             )}
 
-            {/* REGISTER / LOGIN / FORGOT: Email */}
+            {/* LOGIN / REGISTER / FORGOT: Email */}
             {mode !== 'reset' && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@college.edu"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium"
+                    placeholder="you@example.com"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
                 </div>
               </div>
             )}
 
-            {/* REGISTER: Academic Info Grid */}
+            {/* REGISTER: Additional fields (styled compactly & generic) */}
             {mode === 'register' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">College Name</label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+              <div className="space-y-4 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">College Name</label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        value={college}
+                        onChange={(e) => setCollege(e.target.value)}
+                        placeholder="IIIT Surat"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Branch / Stream</label>
                     <input
                       type="text"
                       required
-                      value={college}
-                      onChange={(e) => setCollege(e.target.value)}
-                      placeholder="e.g. IIT Delhi"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium font-medium"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      placeholder="Computer Science"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Branch / Stream</label>
-                  <input
-                    type="text"
-                    required
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    placeholder="e.g. Computer Science"
-                    className="w-full px-4 py-2.5 rounded-xl input-premium"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Graduation Year</label>
-                  <input
-                    type="number"
-                    required
-                    min={2020}
-                    max={2035}
-                    value={graduationYear}
-                    onChange={(e) => setGraduationYear(e.target.value)}
-                    placeholder="e.g. 2026"
-                    className="w-full px-4 py-2.5 rounded-xl input-premium"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Current Company <span className="text-slate-500">(Optional)</span></label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Graduation Year</label>
                     <input
-                      type="text"
-                      value={currentCompany}
-                      onChange={(e) => setCurrentCompany(e.target.value)}
-                      placeholder="e.g. Amazon"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium"
+                      type="number"
+                      required
+                      min={2020}
+                      max={2035}
+                      value={graduationYear}
+                      onChange={(e) => setGraduationYear(e.target.value)}
+                      placeholder="2026"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                      Company <span className="text-[10px] text-slate-500 uppercase">Optional</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={currentCompany}
+                        onChange={(e) => setCurrentCompany(e.target.value)}
+                        placeholder="Amazon"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -259,7 +370,7 @@ export const Auth: React.FC = () => {
 
             {/* LOGIN / REGISTER / RESET: Password */}
             {mode !== 'forgot' && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                     {mode === 'reset' ? 'New Password' : 'Password'}
@@ -268,39 +379,46 @@ export const Auth: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setMode('forgot')}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 font-medium hover:underline"
+                      className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
                     >
-                      Forgot?
+                      Forgot password?
                     </button>
                   )}
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium"
+                    className="w-full pl-9 pr-14 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white font-medium"
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
                 </div>
               </div>
             )}
 
             {/* RESET: Confirm Password */}
             {mode === 'reset' && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Confirm New Password</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Confirm Password</label>
                 <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <KeyRound className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl input-premium"
+                    className="w-full pl-9 pr-14 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
                 </div>
               </div>
@@ -310,43 +428,69 @@ export const Auth: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl font-bold text-white btn-premium flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold rounded-lg text-sm transition-all duration-200 mt-2 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader size="sm" />
               ) : (
                 <>
-                  {mode === 'login' && 'Sign In'}
+                  {mode === 'login' && 'Sign in'}
                   {mode === 'register' && 'Register'}
                   {mode === 'forgot' && 'Send recovery link'}
                   {mode === 'reset' && 'Update Password'}
                 </>
               )}
             </button>
+
+            {/* Or divider (only in login & register) */}
+            {(mode === 'login' || mode === 'register') && (
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="border-t border-slate-800 w-full absolute z-0" />
+                <span className="bg-slate-900 px-3 text-xs text-slate-500 uppercase relative z-10 font-medium">Or</span>
+              </div>
+            )}
+
+            {/* Google OAuth Button Container */}
+            {(mode === 'login' || mode === 'register') && (
+              <div id="googleSignInButton" className="w-full flex justify-center mt-2 z-20 min-h-[40px]" />
+            )}
+
           </form>
         )}
 
-        {/* Back to login toggle */}
-        <div className="mt-8 text-center border-t border-darkBorder pt-6">
+        {/* Footer Navigation link redirects */}
+        <div className="mt-6 text-center border-t border-slate-800/80 pt-4">
           {mode === 'login' && (
             <p className="text-sm text-slate-400">
-              New to the platform?{' '}
+              Don't have an account?{' '}
               <button
                 onClick={() => setMode('register')}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline"
+                className="text-blue-400 hover:text-blue-300 font-bold ml-1 transition"
               >
-                Sign Up Now
+                Create one
               </button>
             </p>
           )}
 
-          {(mode === 'register' || mode === 'forgot' || mode === 'reset') && (
+          {mode === 'register' && (
+            <p className="text-sm text-slate-400">
+              Already have an account?{' '}
+              <button
+                onClick={() => setMode('login')}
+                className="text-blue-400 hover:text-blue-300 font-bold ml-1 transition"
+              >
+                Sign in
+              </button>
+            </p>
+          )}
+
+          {(mode === 'forgot' || mode === 'reset') && (
             <button
               onClick={() => {
                 setMode('login');
                 setMessage(null);
               }}
-              className="text-sm text-slate-400 hover:text-slate-300 font-medium flex items-center gap-2 justify-center mx-auto"
+              className="text-sm text-slate-400 hover:text-slate-300 font-semibold"
             >
               ← Back to login
             </button>

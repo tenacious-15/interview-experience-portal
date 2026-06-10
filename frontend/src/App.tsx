@@ -10,6 +10,7 @@ import { QuestionsBank } from './pages/QuestionsBank';
 import { Tips } from './pages/Tips';
 import { Profile } from './pages/Profile';
 import { AdminPanel } from './pages/AdminPanel';
+import { AICoach } from './pages/AICoach';
 
 // Admin Route Guard
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
             <Route path="/questions" element={<QuestionsBank />} />
             <Route path="/tips" element={<Tips />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/ai-coach" element={<AICoach />} />
             
             {/* Guarded Admin Moderation route */}
             <Route 

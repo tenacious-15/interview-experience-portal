@@ -9,7 +9,8 @@ import {
   User, 
   ShieldAlert, 
   LogOut,
-  Terminal
+  Terminal,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Questions Bank', path: '/questions', icon: BookOpen },
     { name: 'Prep Tips', path: '/tips', icon: Lightbulb },
+    { name: 'AI Experience Bot', path: '/ai-coach', icon: Sparkles },
     { name: 'Add Experience', path: '/add-experience', icon: PlusSquare },
     { name: 'My Profile', path: '/profile', icon: User },
   ];
