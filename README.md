@@ -4,23 +4,28 @@ A centralized full-stack web application designed for students and candidates to
 
 ---
 
-## Key Features
+## 🚀 Newly Added Features (Auth Redesign & AI Integration)
 
-1. **User Profiles & Roles:** Students can register, log in, manage profiles, and post experiences, while Admins moderate content and manage user records.
-2. **Step-by-Step Experience Sharing:** A multi-step form detailing rounds (Online Assessment, Technical, HR), asked questions, and rating reviews.
-3. **Interactive Discussion Threads:** Hierarchical comments support nested replies on each experience feed post.
-4. **Global Question Bank:** Searchable and filterable grid of all technical questions logged across interviews, complete with links to solve them on LeetCode/GFG/Codeforces.
-5. **Interactive Analytics Dashboard:** Visualize hiring trends and DSA topics with responsive custom SVG charts.
-6. **Advanced Company Insights:** View outcome statistics (select/reject rates), question difficulty distributions, and hot topics for specific employers.
+We have implemented key upgrades to make user authentication seamless, completely bypass SMTP requirements, and add a data-driven AI assistant:
 
----
+### 1. Direct Registration & Login (No Email Verification)
+- **Direct Login:** The email verification step upon registration has been removed. All new registered student accounts are marked as `isVerified: true` automatically, allowing them to log in immediately.
+- **Legacy Account Bypass:** Unverified legacy student accounts are automatically verified and allowed to log in upon entering correct credentials.
 
-## 🛠️ Zero-Config Resilient Mode
+### 2. Google OAuth2 Sign-in ("Continue with Google")
+- **One-Click Sign-in:** Users can now click the standard Google login button, select their Gmail account, and instantly log in or register.
+- **Auto-Registration:** First-time sign-ins via Google automatically create a new student account using the user's Google name, email, and profile avatar (pre-marked as verified).
+- **Backend Verification:** Validates tokens securely via Google's tokeninfo API using native Node `fetch` (no external dependency needed).
 
-The project features a built-in auto-fallback architecture to run instantly in development environments without external services:
-- **No Database Setup Required:** If no `MONGO_URI` is supplied, the server spins up a local **persistent JSON database file** (`backend/data/db.json`).
-- **No Image CDN Required:** If no Cloudinary keys are supplied, user profile pictures are stored as Base64 strings.
-- **No SMTP Server Required:** If Nodemailer configurations are omitted, email verification links and password recovery tokens are printed directly to the server logs and API responses.
+### 3. SMTP-less Forgot Password (Console Mail Fallback)
+- **Bypassed SMTP:** The system runs permanently in Console Fallback mode, meaning you do not need to configure complex SMTP credentials or email passwords (e.g. Gmail App Passwords).
+- **Console Logs:** When a user requests a password reset link, the recovery URL is logged directly in the backend terminal console for easy developer testing.
+
+### 4. AI Experience Chatbot (`/ai-coach`)
+- **Data-Driven Context:** A premium, generic dark-theme chatbot interface accessible at `/ai-coach` (labeled **"AI Experience Bot"** in the sidebar).
+- **Smart Prompts:** Features clickable suggestions to ask about hiring trends for companies (e.g., *"Amazon me DSA round me kya puchte hain?"*).
+- **Dynamic Analysis:** When asked about a company, the backend searches the database for all related interview experiences and asked questions, compiles the statistics (top topics, selection rate, typical questions), and feeds it to Google Gemini to formulate an accurate Hinglish/English response.
+- **Resilient Fallback:** If the Gemini API key is missing, the backend runs a local statistical aggregation engine to return structured counts and preparation advice.
 
 ---
 
@@ -43,8 +48,7 @@ The database comes pre-seeded with two accounts (pre-verified and populated with
 Make sure you have **Node.js** (v18+) and **NPM** installed.
 
 ### 1. Backend Setup
-Navigate to the `backend` folder, install dependencies, and start the development server:
-
+Navigate to the `backend` folder and start the dev server:
 ```bash
 cd backend
 npm install
@@ -53,8 +57,7 @@ npm run dev
 The backend server runs at `http://localhost:5000`.
 
 ### 2. Frontend Setup
-Navigate to the `frontend` folder, install dependencies, and launch the Vite client:
-
+Navigate to the `frontend` folder and launch the Vite client:
 ```bash
 cd ../frontend
 npm install --legacy-peer-deps
