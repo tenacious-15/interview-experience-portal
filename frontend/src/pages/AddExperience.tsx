@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Loader } from '../components/Loader';
@@ -29,22 +29,106 @@ export const AddExperience: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to load draft field
+  const getDraftField = (field: string, defaultValue: any) => {
+    try {
+      const saved = localStorage.getItem('interview_experience_draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed[field] !== undefined) {
+          return parsed[field];
+        }
+      }
+    } catch (e) {
+      console.error('Error loading draft field:', e);
+    }
+    return defaultValue;
+  };
+
   // Form States
-  const [companyName, setCompanyName] = useState('');
-  const [role, setRole] = useState('');
-  const [interviewDate, setInterviewDate] = useState('');
-  const [status, setStatus] = useState<'Selected' | 'Rejected' | 'Waiting'>('Selected');
+  const [companyName, setCompanyName] = useState(() => getDraftField('companyName', ''));
+  const [role, setRole] = useState(() => getDraftField('role', ''));
+  const [interviewDate, setInterviewDate] = useState(() => getDraftField('interviewDate', ''));
+  const [status, setStatus] = useState<'Selected' | 'Rejected' | 'Waiting'>(() => getDraftField('status', 'Selected'));
   
-  const [oaExperience, setOaExperience] = useState('');
-  const [technicalRoundExperience, setTechnicalRoundExperience] = useState('');
-  const [hrRoundExperience, setHrRoundExperience] = useState('');
-  const [overallExperience, setOverallExperience] = useState('');
-  const [preparationTips, setPreparationTips] = useState('');
+  const [oaExperience, setOaExperience] = useState(() => getDraftField('oaExperience', ''));
+  const [technicalRoundExperience, setTechnicalRoundExperience] = useState(() => getDraftField('technicalRoundExperience', ''));
+  const [hrRoundExperience, setHrRoundExperience] = useState(() => getDraftField('hrRoundExperience', ''));
+  const [overallExperience, setOverallExperience] = useState(() => getDraftField('overallExperience', ''));
+  const [preparationTips, setPreparationTips] = useState(() => getDraftField('preparationTips', ''));
 
   // Asked Questions State
-  const [questions, setQuestions] = useState<QuestionInput[]>([
-    { title: '', description: '', link: '', topic: 'Arrays', difficulty: 'Medium' }
+  const [questions, setQuestions] = useState<QuestionInput[]>(() => 
+    getDraftField('questions', [{ title: '', description: '', link: '', topic: 'Arrays', difficulty: 'Medium' }])
+  );
+
+  // Show draft restored banner if meaningful draft content was loaded
+  const [showRestoredBanner, setShowRestoredBanner] = useState(() => {
+    const saved = localStorage.getItem('interview_experience_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return !!(
+          parsed.companyName || 
+          parsed.role || 
+          parsed.oaExperience || 
+          parsed.technicalRoundExperience || 
+          parsed.hrRoundExperience || 
+          parsed.overallExperience || 
+          parsed.preparationTips || 
+          (parsed.questions && parsed.questions.some((q: any) => q.title))
+        );
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  // Auto-save draft on changes
+  useEffect(() => {
+    const draftData = {
+      companyName,
+      role,
+      interviewDate,
+      status,
+      oaExperience,
+      technicalRoundExperience,
+      hrRoundExperience,
+      overallExperience,
+      preparationTips,
+      questions
+    };
+    localStorage.setItem('interview_experience_draft', JSON.stringify(draftData));
+  }, [
+    companyName,
+    role,
+    interviewDate,
+    status,
+    oaExperience,
+    technicalRoundExperience,
+    hrRoundExperience,
+    overallExperience,
+    preparationTips,
+    questions
   ]);
+
+  const handleClearDraft = () => {
+    localStorage.removeItem('interview_experience_draft');
+    setCompanyName('');
+    setRole('');
+    setInterviewDate('');
+    setStatus('Selected');
+    setOaExperience('');
+    setTechnicalRoundExperience('');
+    setHrRoundExperience('');
+    setOverallExperience('');
+    setPreparationTips('');
+    setQuestions([{ title: '', description: '', link: '', topic: 'Arrays', difficulty: 'Medium' }]);
+    setStep(1);
+    setShowRestoredBanner(false);
+    setError(null);
+  };
 
   const handleAddQuestion = () => {
     setQuestions(prev => [
@@ -129,6 +213,9 @@ export const AddExperience: React.FC = () => {
         questions: validQuestions
       });
 
+      // Clear draft on successful submission
+      localStorage.removeItem('interview_experience_draft');
+
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to submit experience.');
@@ -152,6 +239,33 @@ export const AddExperience: React.FC = () => {
         <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight">Share Interview Experience</h1>
         <p className="text-xs text-slate-400 mt-1">Help juniors prepare by detailing your recruitment process.</p>
       </div>
+
+      {/* Restored Draft Banner */}
+      {showRestoredBanner && (
+        <div className="p-4 rounded-xl border bg-indigo-500/10 border-indigo-500/20 text-indigo-200 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-base">📝</span>
+            <div>
+              <p className="font-bold">Draft restored automatically</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">We found an unsaved draft from your last session and restored it.</p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setShowRestoredBanner(false)}
+              className="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all"
+            >
+              Keep Editing
+            </button>
+            <button
+              onClick={handleClearDraft}
+              className="px-3 py-1.5 rounded-lg font-bold bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 transition-all"
+            >
+              Clear Draft
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Progress Indicators */}
       <div className="glass-card p-4 rounded-xl flex justify-between items-center text-xs">

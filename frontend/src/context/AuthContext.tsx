@@ -39,9 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         // Attempt token refresh
-        const res = await api.post('/auth/refresh', {});
-        const { accessToken } = res.data;
+        const localRefreshToken = localStorage.getItem('refreshToken');
+        const res = await api.post('/auth/refresh', { refreshToken: localRefreshToken });
+        const { accessToken, refreshToken: newRefreshToken } = res.data;
         setAccessToken(accessToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
 
         // Fetch user profile
         const profileRes = await api.get('/users/profile');
@@ -49,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.log('No existing active session found.');
         setAccessToken('');
+        localStorage.removeItem('refreshToken');
         setUser(null);
       } finally {
         setLoading(false);
@@ -60,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for global auth expiration events
     const handleAuthExpired = () => {
       setAccessToken('');
+      localStorage.removeItem('refreshToken');
       setUser(null);
     };
 
@@ -81,8 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginUser = async (credentials: any) => {
     const res = await api.post('/auth/login', credentials);
-    const { accessToken, user: loggedUser } = res.data;
+    const { accessToken, refreshToken, user: loggedUser } = res.data;
     setAccessToken(accessToken);
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
     setUser(loggedUser);
     return res.data;
   };
@@ -94,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Logout error on server:', err);
     } finally {
       setAccessToken('');
+      localStorage.removeItem('refreshToken');
       setUser(null);
     }
   };
@@ -110,8 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async (credential: string) => {
     const res = await api.post('/auth/google', { credential });
-    const { accessToken, user: loggedUser } = res.data;
+    const { accessToken, refreshToken, user: loggedUser } = res.data;
     setAccessToken(accessToken);
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
     setUser(loggedUser);
     return res.data;
   };

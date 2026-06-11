@@ -46,11 +46,19 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Request a new access token
-        const response = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
-        const { accessToken: newToken } = response.data;
+        // Request a new access token passing the stored refresh token in body as a fallback
+        const localRefreshToken = localStorage.getItem('refreshToken');
+        const response = await axios.post(
+          `${API_URL}/auth/refresh`,
+          { refreshToken: localRefreshToken },
+          { withCredentials: true }
+        );
+        const { accessToken: newToken, refreshToken: newRefreshToken } = response.data;
 
         setAccessToken(newToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
         
         // Update original request auth header
         if (originalRequest.headers) {
@@ -62,6 +70,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // If refresh fails, clear token and bubble up error
         setAccessToken('');
+        localStorage.removeItem('refreshToken');
         // We can trigger a custom event or let the AuthContext handle redirecting to login
         window.dispatchEvent(new Event('auth-expired'));
         return Promise.reject(refreshError);

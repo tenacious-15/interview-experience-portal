@@ -16,6 +16,17 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
+// Cookie configuration helper
+const getCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  };
+};
+
 export const register = async (req, res) => {
   try {
     const { name, email, password, college, branch, graduationYear, currentCompany } = req.body;
@@ -103,16 +114,12 @@ export const login = async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Set Refresh Token in cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
 
     res.status(200).json({
       message: 'Login successful!',
       accessToken,
+      refreshToken, // Returned for clients that block third-party cookies
       user: {
         id: user._id,
         name: user.name,
@@ -151,14 +158,12 @@ export const refresh = async (req, res) => {
       const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
       // Reset Refresh Token in cookie
-      res.cookie('refreshToken', newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
+      res.cookie('refreshToken', newRefreshToken, getCookieOptions());
 
-      res.status(200).json({ accessToken });
+      res.status(200).json({ 
+        accessToken,
+        refreshToken: newRefreshToken // Returned for clients that block third-party cookies
+      });
     });
   } catch (error) {
     console.error('Token refresh error:', error);
@@ -168,11 +173,11 @@ export const refresh = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+    const cookieOpts = getCookieOptions();
+    // Delete maxAge/expires properties when clearing cookie
+    delete cookieOpts.maxAge;
+    
+    res.clearCookie('refreshToken', cookieOpts);
     res.status(200).json({ message: 'Logged out successfully.' });
   } catch (error) {
     console.error('Logout error:', error);
@@ -362,16 +367,12 @@ export const googleLogin = async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Set Refresh Token in cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
 
     res.status(200).json({
       message: 'Login successful via Google!',
       accessToken,
+      refreshToken, // Returned for clients that block third-party cookies
       user: {
         id: user._id,
         name: user.name,
