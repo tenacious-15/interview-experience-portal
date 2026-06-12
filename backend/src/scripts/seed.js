@@ -2,6 +2,75 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { User, Experience, Question } from '../models/index.js';
 
+const studentNames = [
+  'Rahul Sharma', 'Sneha Patel', 'Amit Verma', 'Priya Iyer', 'Rohan Gupta',
+  'Ananya Rao', 'Vikram Singh', 'Kirti Reddy', 'Akash Mishra', 'Shreya Sen',
+  'Manish Joshi', 'Tanvi Shah', 'Gaurav Saxena', 'Neha Choudhary', 'Rohit Yadav',
+  'Divya Nair', 'Yash Singhal', 'Ishita Kapoor', 'Abhishek Banerjee', 'Riya Malhotra',
+  'Kunal Deshmukh', 'Nikita Bhat', 'Saurabh Tiwari', 'Pragya Hegde', 'Varun Mehta',
+  'Ritu Phogat', 'Ayush Bajpai', 'Palak Agarwal', 'Harsh Vardhan', 'Megha Shrivastava',
+  'Vivek Nair', 'Shalini Pandey', 'Karan Johar', 'Aditi Sharma', 'Nitin Gadkari',
+  'Anjali Desai', 'Shubham Goel', 'Pooja Hegde', 'Siddharth Roy', 'Swati Mishra',
+  'Pranav Anand', 'Sakshi Dwivedi', 'Deepak Chawla', 'Jyoti Kumari', 'Rishabh Pant',
+  'Snehal Patil', 'Tarun Gill', 'Monica Geller', 'Sumit Vyas', 'Rashi Khanna'
+];
+
+const studentColleges = [
+  'Indian Institute of Information Technology, Surat',
+  'National Institute of Technology, Trichy',
+  'Indian Institute of Technology, Bombay',
+  'Birla Institute of Technology and Science, Pilani',
+  'Delhi Technological University, Delhi',
+  'Netaji Subhas University of Technology, Delhi',
+  'Vellore Institute of Technology, Vellore',
+  'Indian Institute of Information Technology, Allahabad',
+  'National Institute of Technology, Surathkal',
+  'Indian Institute of Technology, Delhi',
+  'Indian Institute of Technology, Kharagpur',
+  'National Institute of Technology, Warangal',
+  'Motilal Nehru National Institute of Technology, Allahabad',
+  'Harcourt Butler Technical University, Kanpur',
+  'Indian Institute of Engineering Science and Technology, Shibpur',
+  'Indian Institute of Information Technology, Gwalior',
+  'National Institute of Technology, Calicut',
+  'Indian Institute of Technology, Madras',
+  'Indian Institute of Technology, Roorkee',
+  'BITS Pilani, Goa Campus',
+  'BITS Pilani, Hyderabad Campus',
+  'Thapar Institute of Engineering and Technology, Patiala',
+  'College of Engineering, Guindy',
+  'Jadavpur University, Kolkata',
+  'PEC University of Technology, Chandigarh',
+  'National Institute of Technology, Rourkela',
+  'Indian Institute of Information Technology, Lucknow',
+  'Indian Institute of Information Technology, Pune',
+  'National Institute of Technology, Kurukshetra',
+  'National Institute of Technology, Silchar',
+  'Delhi Skill and Entrepreneurship University, Delhi',
+  'Manipal Institute of Technology, Manipal',
+  'RV College of Engineering, Bangalore',
+  'PES University, Bangalore',
+  'BMS College of Engineering, Bangalore',
+  'Veermata Jijabai Technological Institute, Mumbai',
+  'Pune Institute of Computer Technology, Pune',
+  'College of Engineering, Pune',
+  'National Institute of Technology, Durgapur',
+  'National Institute of Technology, Jamshedpur',
+  'National Institute of Technology, Hamirpur',
+  'Indian Institute of Information Technology, Vadodara',
+  'Indian Institute of Information Technology, Sri City',
+  'Indian Institute of Information Technology, Dharwad',
+  'Indian Institute of Information Technology, Kottayam',
+  'Indian Institute of Information Technology, Guwahati',
+  'National Institute of Technology, Patna',
+  'National Institute of Technology, Raipur',
+  'National Institute of Technology, Jalandhar',
+  'National Institute of Technology, Goa'
+];
+
+const studentBranches = ['Computer Science & Engineering', 'Information Technology', 'Electronics & Communication Engineering'];
+const studentGradYears = [2024, 2025, 2026];
+
 const companiesData = [
   {
     companyName: 'Google',
@@ -140,7 +209,7 @@ const companiesData = [
     oaExperience: 'No OA. Standard phone screening followed by system design round.',
     technicalRoundExperience: '4 onsite rounds. Round 1 was System Design: Design Twitter. Round 2 was Coding: Median of Two Sorted Arrays. Round 3 was architectural scaling and databases.',
     hrRoundExperience: 'Intense culture memo discussion. Netflix has a famous freedom & responsibility culture that they test thoroughly.',
-    overallExperience: ' Netflix looks for senior talent with massive scale experience. They verify if you can design highly decoupled distributed microservices.',
+    overallExperience: 'Netflix looks for senior talent with massive scale experience. They verify if you can design highly decoupled distributed microservices.',
     preparationTips: 'Master System Design, scaling architectures, distributed caching, and study the Netflix culture deck.',
     questions: [
       {
@@ -267,7 +336,7 @@ const companiesData = [
     companyName: 'Atlassian',
     role: 'Graduate SDE',
     status: 'Selected',
-    oaExperience: 'Codeility test. 3 questions on recursion, queues, and tree traversal. Time allowed: 90 mins.',
+    oaExperience: 'Codility test. 3 questions on recursion, queues, and tree traversal. Time allowed: 90 mins.',
     technicalRoundExperience: '3 rounds. Round 1: Design Snake Game using Deque. Round 2: LRU Cache. Round 3: Values fitment (Don\'t F#@k the Customer, Play as a team).',
     hrRoundExperience: 'Cultural alignment review, salary discussion, and onboarding location preference.',
     overallExperience: 'Atlassian interviews check your code design, choice of data structures, and company values matching.',
@@ -1250,45 +1319,60 @@ async function seedDatabase() {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB.');
 
-    // 2. Fetch or Create standard Seeder User
-    const seederEmail = 'seeder@interviewhub.com';
-    let seederUser = await mongoose.model('User').findOne({ email: seederEmail });
+    // 2. Clear old seed data (both experiences and questions belonging to seed users, and the users themselves)
+    console.log(`- Purging previous seed users, experiences, and questions...`);
     
-    if (!seederUser) {
-      console.log(`- Creating seeder user: ${seederEmail}`);
-      const hashedPassword = await bcrypt.hash('SeederPassword123!', 10);
-      seederUser = await mongoose.model('User').create({
-        name: 'Campus Seeder',
-        email: seederEmail,
-        password: hashedPassword,
-        role: 'student',
-        college: 'Indian Institute of Information Technology',
-        branch: 'Computer Science',
-        graduationYear: 2025,
-        isVerified: true
-      });
-      console.log('✅ Seeder user created.');
-    } else {
-      console.log('ℹ️ Seeder user already exists.');
+    // Find all users matching seed email pattern
+    const seedUsers = await mongoose.model('User').find({
+      email: { $regex: /^seed_student_.*@interviewhub\.com$/ }
+    });
+    const seedUserIds = seedUsers.map(u => u._id);
+
+    // Also include old legacy 'seeder@interviewhub.com' if present
+    const legacyUser = await mongoose.model('User').findOne({ email: 'seeder@interviewhub.com' });
+    if (legacyUser) {
+      seedUserIds.push(legacyUser._id);
     }
 
-    // 3. Clear existing seed data from this specific user
-    console.log(`- Purging previous seed experiences and questions...`);
-    const existingExperiences = await mongoose.model('Experience').find({ user: seederUser._id });
-    const experienceIds = existingExperiences.map(e => e._id);
-    
-    await mongoose.model('Experience').deleteMany({ user: seederUser._id });
-    await mongoose.model('Question').deleteMany({ user: seederUser._id });
-    console.log(`✅ Cleared ${existingExperiences.length} old experiences and related questions.`);
+    // Delete related experiences, questions, and users
+    if (seedUserIds.length > 0) {
+      await mongoose.model('Experience').deleteMany({ user: { $in: seedUserIds } });
+      await mongoose.model('Question').deleteMany({ user: { $in: seedUserIds } });
+      await mongoose.model('User').deleteMany({ _id: { $in: seedUserIds } });
+      console.log(`✅ Cleared ${seedUsers.length + (legacyUser ? 1 : 0)} old seed user profiles and their corresponding data.`);
+    } else {
+      console.log('✅ No previous seed users found.');
+    }
 
-    // 4. Inject 50 new Experiences and Questions
-    console.log(`- Injecting 50 interview experiences...`);
+    // 3. Inject 50 new Experiences and Questions, creating a unique user for each experience
+    console.log(`- Injecting 50 unique student profiles and interview experiences...`);
     let experienceCount = 0;
     let questionCount = 0;
+    const defaultPassword = await bcrypt.hash('SeedPassword123!', 10);
 
-    for (const data of companiesData) {
+    for (let i = 0; i < companiesData.length; i++) {
+      const data = companiesData[i];
+      const studentName = studentNames[i % studentNames.length];
+      const collegeName = studentColleges[i % studentColleges.length];
+      const branchName = studentBranches[i % studentBranches.length];
+      const gradYear = studentGradYears[i % studentGradYears.length];
+      const email = `seed_student_${i + 1}@interviewhub.com`;
+
+      // Create unique user for this experience
+      const user = await mongoose.model('User').create({
+        name: studentName,
+        email: email,
+        password: defaultPassword,
+        role: 'student',
+        college: collegeName,
+        branch: branchName,
+        graduationYear: gradYear,
+        isVerified: true
+      });
+
+      // Create the Experience
       const exp = await mongoose.model('Experience').create({
-        user: seederUser._id,
+        user: user._id,
         companyName: data.companyName,
         role: data.role,
         interviewDate: new Date('2026-04-15'),
@@ -1302,11 +1386,12 @@ async function seedDatabase() {
       });
       experienceCount++;
 
+      // Create associated Questions
       if (data.questions && data.questions.length > 0) {
         for (const q of data.questions) {
           await mongoose.model('Question').create({
             experience: exp._id,
-            user: seederUser._id,
+            user: user._id,
             title: q.title,
             description: q.description || '',
             link: q.link || '',
@@ -1321,6 +1406,7 @@ async function seedDatabase() {
 
     console.log('\n======================================');
     console.log(`🏆 Database Seeding Completed Successfully!`);
+    console.log(`- Unique Student Profiles Created: ${experienceCount}`);
     console.log(`- Experiences Created: ${experienceCount}`);
     console.log(`- Coding Questions Created: ${questionCount}`);
     console.log('======================================');
