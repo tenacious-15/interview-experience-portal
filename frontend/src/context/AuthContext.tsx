@@ -38,8 +38,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Attempt token refresh
         const localRefreshToken = localStorage.getItem('refreshToken');
+        if (!localRefreshToken) {
+          setAccessToken('');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Attempt token refresh
         const res = await api.post('/auth/refresh', { refreshToken: localRefreshToken });
         const { accessToken, refreshToken: newRefreshToken } = res.data;
         setAccessToken(accessToken);

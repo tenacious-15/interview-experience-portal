@@ -204,15 +204,15 @@ export const Tips: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded bg-indigo-950 text-indigo-350 font-bold flex items-center justify-center border border-indigo-500/20 overflow-hidden text-sm">
                         {t.user?.avatar ? (
-                          <img src={t.user.avatar} alt={t.user.name} className="w-full h-full object-cover" />
+                          <img src={t.user.avatar} alt={t.user.name || 'User'} className="w-full h-full object-cover" />
                         ) : (
-                          t.user?.name.charAt(0).toUpperCase()
+                          t.user?.name ? t.user.name.charAt(0).toUpperCase() : 'U'
                         )}
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-200 text-xs">{t.user?.name}</h4>
+                        <h4 className="font-bold text-slate-200 text-xs">{t.user?.name || 'Anonymous'}</h4>
                         <span className="text-[9px] text-slate-500 block">
-                          {t.user?.college.split(',')[0]} • Class of {t.user?.graduationYear}
+                          {t.user?.college ? t.user.college.split(',')[0] : 'N/A'} • Class of {t.user?.graduationYear || 'N/A'}
                         </span>
                       </div>
                     </div>

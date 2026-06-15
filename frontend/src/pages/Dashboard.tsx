@@ -326,15 +326,15 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-indigo-950 text-indigo-300 font-extrabold flex items-center justify-center border border-indigo-500/20 overflow-hidden text-sm">
                         {exp.user?.avatar ? (
-                          <img src={exp.user.avatar} alt={exp.user.name} className="w-full h-full object-cover" />
+                          <img src={exp.user.avatar} alt={exp.user.name || 'User'} className="w-full h-full object-cover" />
                         ) : (
-                          exp.user?.name.charAt(0).toUpperCase()
+                          exp.user?.name ? exp.user.name.charAt(0).toUpperCase() : 'U'
                         )}
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-200 text-sm">{exp.user?.name}</h4>
+                        <h4 className="font-bold text-slate-200 text-sm">{exp.user?.name || 'Anonymous'}</h4>
                         <span className="text-[10px] text-slate-400 font-medium">
-                          {exp.user?.college.split(',')[0]} • Class of {exp.user?.graduationYear}
+                          {exp.user?.college ? exp.user.college.split(',')[0] : 'N/A'} • Class of {exp.user?.graduationYear || 'N/A'}
                         </span>
                       </div>
                     </div>

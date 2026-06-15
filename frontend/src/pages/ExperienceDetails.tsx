@@ -301,18 +301,18 @@ export const ExperienceDetails: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-indigo-950 text-indigo-300 font-extrabold flex items-center justify-center border border-indigo-500/20 overflow-hidden text-lg">
               {experience.user?.avatar ? (
-                <img src={experience.user.avatar} alt={experience.user.name} className="w-full h-full object-cover" />
+                <img src={experience.user.avatar} alt={experience.user.name || 'User'} className="w-full h-full object-cover" />
               ) : (
-                experience.user?.name.charAt(0).toUpperCase()
+                experience.user?.name ? experience.user.name.charAt(0).toUpperCase() : 'U'
               )}
             </div>
             <div>
-              <h1 className="text-lg font-extrabold text-slate-100">{experience.user?.name}</h1>
+              <h1 className="text-lg font-extrabold text-slate-100">{experience.user?.name || 'Anonymous'}</h1>
               <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
                 <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{experience.user?.college}</span>
+                <span>{experience.user?.college || 'N/A'}</span>
                 <span>•</span>
-                <span>{experience.user?.branch} (Class of {experience.user?.graduationYear})</span>
+                <span>{experience.user?.branch || 'N/A'} (Class of {experience.user?.graduationYear || 'N/A'})</span>
               </p>
             </div>
           </div>

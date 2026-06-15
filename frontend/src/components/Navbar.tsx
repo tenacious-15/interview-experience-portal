@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({ sidebarOpen, setSidebarOpen }) =
           <span className="text-xs font-semibold text-indigo-400/90 tracking-widest uppercase">
             Portal Portal
           </span>
-          <h2 className="text-sm font-bold text-slate-300">Welcome Back, {user?.name.split(' ')[0]}!</h2>
+          <h2 className="text-sm font-bold text-slate-300">Welcome Back, {user?.name ? user.name.split(' ')[0] : 'Guest'}!</h2>
         </div>
       </div>
 
@@ -44,12 +44,12 @@ export const Navbar: React.FC<NavbarProps> = ({ sidebarOpen, setSidebarOpen }) =
         >
           <div className="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/20 overflow-hidden flex items-center justify-center text-indigo-300 font-bold text-xs">
             {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              <img src={user.avatar} alt={user.name || 'User'} className="w-full h-full object-cover" />
             ) : (
-              user?.name.charAt(0).toUpperCase()
+              user?.name ? user.name.charAt(0).toUpperCase() : 'U'
             )}
           </div>
-          <span className="text-xs font-semibold text-slate-300 hidden md:inline">{user?.name}</span>
+          <span className="text-xs font-semibold text-slate-300 hidden md:inline">{user?.name || 'User'}</span>
         </Link>
       </div>
     </header>
